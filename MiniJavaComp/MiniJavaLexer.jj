@@ -1,0 +1,535 @@
+options {
+  JAVA_UNICODE_ESCAPE = true;
+  LOOKAHEAD = 5;
+
+}
+
+PARSER_BEGIN(MiniJava)
+
+import syntaxtree.*;
+
+public class MiniJava {
+    public static void main(String[] args) throws ParseException {
+        MiniJava parser = new MiniJava(System.in);
+        parser.Goal();
+        System.out.println("Lexical analysis successful.");
+    }
+}
+
+PARSER_END(MiniJava)
+
+/* The regular expressions here will be skipped during lexical analysis: */
+SKIP :
+{
+" "
+| "\r"
+| "\t"
+| "\n"
+}
+
+SKIP : 
+{
+"/*" : MLComment
+}
+
+<MLComment> SKIP:
+{
+  "*/" : DEFAULT
+  | < ~[] >
+}
+
+SKIP: {
+  "//" : SLComment
+}
+
+<SLComment> SKIP:
+{
+  <["\n","\r"]> : DEFAULT
+  | < ~[] >
+}
+
+TOKEN : /* Keywords */
+{
+   < INT       : "int" >
+ | < VOID      : "void" >
+ | < STRING    : "String" >
+ | < BOOLEAN   : "boolean" >
+
+ | < THIS      : "this" >
+ | < TRUE      : "true" >
+ | < FALSE     : "false" >
+
+ | < MAIN      : "main" >
+ | < LENGTH    : "length" >
+ | < PRINT     : "System.out.println" >
+
+ | < IF        : "if" >
+ | < NEW       : "new" >
+ | < ELSE      : "else" >
+ | < CLASS     : "class" >
+ | < WHILE     : "while" >
+ | < FOR       : "for" >
+ | < PUBLIC    : "public" >
+ | < RETURN    : "return" >
+ | < STATIC    : "static" >
+ | < EXTENDS   : "extends" >
+}
+
+TOKEN : /* Separators */
+{
+   < LPAREN  : "(" >
+ | < RPAREN  : ")" >
+ | < LBRACKET : "[" >
+ | < RBRACKET : "]" >
+ | < LBRACE   : "{" >
+ | < RBRACE   : "}" >
+
+ | < COMMA : "," >
+ | < DOT   : "." >
+ | < SEMI  : ";" >
+}
+
+TOKEN : /* Operators */
+{
+   < ADD  : "+" >
+ | < SUB  : "-" >
+ | < MULT : "*" >
+
+ | < AND  : "&&" >
+ | < NOT  : "!" >
+ | < LESS : "<" >
+
+ | < ASSIGN : "=" >
+}
+
+
+TOKEN : /* Numbers */
+{
+  < NUM : "0" | ["1"-"9"](["0"-"9"])* >
+}
+
+
+TOKEN : /* Identifiers */
+{
+    < IDENTIFIER : <LETTER> (<LETTER> | <DIGIT>)* >
+
+  | < #LETTER : "$" | "_" | ["a"-"z","A"-"Z"] >
+  | < #DIGIT :  ["0"-"9"] >
+}
+
+
+TOKEN : /* Strings */
+{
+  < STRING_LITERAL :
+      "\""
+      (
+          ~["\"","\\","\n","\r"]
+        | "\\" ["n","t","b","r","f","\\","'","\""]
+      )*
+      "\""
+  >
+}
+
+Program Goal() throws ParseException :
+{
+    MainClass mainClass;
+    ClassDeclList classDeclList = new ClassDeclList();
+    ClassDecl classDecl;
+}
+{
+    mainClass = MainClass()
+    (
+        classDecl = ClassDecl() { classDeclList.addElement(classDecl); }
+    )*
+    <EOF>
+    {
+        return new Program(mainClass, classDeclList);
+    }
+}
+
+
+// MainClass: Represents the main class of the program.
+// Contains the class name, main method parameter name, and the main method body
+MainClass MainClass() :
+{
+    Identifier i1, i2;
+    Statement s;
+}
+{
+    <CLASS> i1 = Identifier()
+    <LBRACE>
+    <PUBLIC> <STATIC> <VOID> <MAIN>
+    <LPAREN> <STRING> <LBRACKET> <RBRACKET> i2 = Identifier() <RPAREN>
+    <LBRACE>
+    s = Statement()
+    <RBRACE>
+    <RBRACE>
+    {
+        return new MainClass(i1, i2, s);
+    }
+}
+
+// ClassDecl: Represents a class declaration.
+// Can be either a simple class or a class that extends another class
+ClassDecl ClassDecl() :
+{
+    Identifier i;
+    Identifier j = null;
+    VarDeclList vl = new VarDeclList();
+    MethodDeclList ml = new MethodDeclList();
+}
+{
+    <CLASS> i = Identifier()
+    [
+        <EXTENDS> j = Identifier()
+    ]
+    <LBRACE>
+    (
+        vl = VarDeclList()
+    )?
+    (
+        ml = MethodDeclList()
+    )?
+    <RBRACE>
+    {
+        if (j == null) {
+            return new ClassDeclSimple(i, vl, ml);
+        } else {
+            return new ClassDeclExtends(i, j, vl, ml);
+        }
+    }
+}
+
+// VarDeclList: Represents a list of variable declarations in a class or method.
+// Collects all variable declarations into a list
+VarDeclList VarDeclList() :
+{
+    VarDeclList vl = new VarDeclList();
+    VarDecl v;
+}
+{
+    (
+        v = VarDecl() { vl.addElement(v); }
+    )+
+    {
+        return vl;
+    }
+}
+
+// VarDecl: Represents a single variable declaration.
+// Contains the variable's type and identifier
+VarDecl VarDecl() :
+{
+    Type t;
+    Identifier i;
+}
+{
+    t = Type() i = Identifier() <SEMI>
+    {
+        return new VarDecl(t, i);
+    }
+}
+
+// MethodDeclList: Represents a list of method declarations in a class.
+// Collects all method declarations into a list
+MethodDeclList MethodDeclList() :
+{
+    MethodDeclList ml = new MethodDeclList();
+    MethodDecl m;
+}
+{
+    (
+        m = MethodDecl() { ml.addElement(m); }
+    )+
+    {
+        return ml;
+    }
+}
+
+// MethodDecl: Represents a method declaration.
+// Contains return type, method name, parameter list, local variables, statements, and return expression
+MethodDecl MethodDecl() :
+{
+    Type t;
+    Identifier i;
+    FormalList fl;
+    VarDeclList vl = new VarDeclList();
+    StatementList sl = new StatementList();
+    Exp e;
+}
+{
+    <PUBLIC> t = Type() i = Identifier()
+    <LPAREN> fl = FormalList() <RPAREN>
+    <LBRACE>
+    (
+        vl = VarDeclList()
+    )?
+    (
+        sl = StatementList()
+    )?
+    <RETURN> e = Exp() <SEMI>
+    <RBRACE>
+    {
+        return new MethodDecl(t, i, fl, vl, sl, e);
+    }
+}
+
+// FormalList: Represents the parameter list of a method.
+// Collects all formal parameters into a list
+FormalList FormalList() :
+{
+    FormalList fl = new FormalList();
+    Formal f;
+}
+{
+    (
+        f = Formal() { fl.addElement(f); }
+        (
+            <COMMA> f = Formal() { fl.addElement(f); }
+        )*
+    )?
+    {
+        return fl;
+    }
+}
+
+// Formal: Represents a single formal parameter in a method declaration.
+// Contains the parameter's type and identifier
+Formal Formal() :
+{
+    Type t;
+    Identifier i;
+}
+{
+    t = Type() i = Identifier()
+    {
+        return new Formal(t, i);
+    }
+}
+
+// Type: Represents a type in MiniJava.
+// Can be int[], boolean, int, or a class type
+Type Type() :
+{
+    Identifier i;
+}
+{
+    <INT> <LBRACKET> <RBRACKET> { return new IntArrayType(); }
+    | <BOOLEAN> { return new BooleanType(); }
+    | <INT> { return new IntegerType(); }
+    | i = Identifier() { return new IdentifierType(i.toString()); }
+}
+
+// StatementList: Represents a list of statements.
+// Collects all statements into a list
+StatementList StatementList() :
+{
+    StatementList sl = new StatementList();
+    Statement s;
+}
+{
+    (
+        s = Statement() { sl.addElement(s); }
+    )+
+    {
+        return sl;
+    }
+}
+
+// Statement: Represents different types of statements in MiniJava.
+// Handles blocks, if-else, while loops, print statements, assignments, and array assignments
+Statement Statement() :
+{
+    StatementList sl = new StatementList();
+    Statement s;
+    Exp e1, e2, e3;
+    Identifier i;
+    Statement s1, s2;
+}
+{
+    <LBRACE>
+    (
+        s = Statement() { sl.addElement(s); }
+    )*
+    <RBRACE>
+    { return new Block(sl); }
+    |
+    <IF> <LPAREN> e1 = Exp() <RPAREN> s1 = Statement()
+    <ELSE> s2 = Statement()
+    { return new If(e1, s1, s2); }
+    |
+    <WHILE> <LPAREN> e1 = Exp() <RPAREN> s1 = Statement()
+    { return new While(e1, s1); }
+    |
+    <PRINT> <LPAREN> e1 = Exp() <RPAREN> <SEMI>
+    { return new Print(e1); }
+    |
+    i = Identifier() <ASSIGN> e1 = Exp() <SEMI>
+    { return new Assign(i, e1); }
+    |
+    i = Identifier() <LBRACKET> e1 = Exp() <RBRACKET> <ASSIGN> e2 = Exp() <SEMI>
+    { return new ArrayAssign(i, e1, e2); }
+}
+
+// Exp: Represents expressions with AND operator.
+// Handles logical AND operations between expressions
+Exp Exp() :
+{
+    Exp e1, e2, e3;
+    Identifier i;
+    Type t;
+}
+{
+    e1 = ExpAnd()
+    (
+        <AND> e2 = ExpAnd() { e1 = new And(e1, e2); }
+    )*
+    { return e1; }
+}
+
+// ExpAnd: Represents expressions with LESS operator.
+// Handles less than comparisons between expressions
+Exp ExpAnd() :
+{
+    Exp e1, e2;
+}
+{
+    e1 = ExpLess()
+    (
+        <LESS> e2 = ExpLess() { e1 = new LessThan(e1, e2); }
+    )*
+    { return e1; }
+}
+
+// ExpLess: Represents expressions with addition and subtraction.
+// Handles arithmetic addition and subtraction operations
+Exp ExpLess() :
+{
+    Exp e1, e2;
+}
+{
+    e1 = ExpPlus()
+    (
+        <ADD> e2 = ExpPlus() { e1 = new Plus(e1, e2); }
+        |
+        <SUB> e2 = ExpPlus() { e1 = new Minus(e1, e2); }
+    )*
+    { return e1; }
+}
+
+// ExpPlus: Represents expressions with multiplication and division.
+// Handles arithmetic multiplication and division operations
+Exp ExpPlus() :
+{
+    Exp e1, e2;
+}
+{
+    e1 = ExpTimes()
+    (
+        <MULT> e2 = ExpTimes() { e1 = new Times(e1, e2); }
+        |
+    )*
+    { return e1; }
+}
+
+// ExpTimes: Represents expressions with array operations and method calls.
+// Handles array length, method calls, and array lookups
+Exp ExpTimes() :
+{
+    Exp e1, e2;
+    Identifier i;
+    ExpList el;
+}
+{
+    e1 = ExpUnary()
+    (
+        <DOT> <LENGTH> { e1 = new ArrayLength(e1); }
+        |
+        <DOT> i = Identifier() <LPAREN> el = ExpList() <RPAREN>
+        { e1 = new Call(e1, i, el); }
+        |
+        <LBRACKET> e2 = Exp() <RBRACKET>
+        { e1 = new ArrayLookup(e1, e2); }
+    )*
+    { return e1; }
+}
+
+// ExpUnary: Represents unary expressions and atomic expressions.
+// Handles not operator, new array, new object, this, boolean literals, identifiers, and numbers
+Exp ExpUnary() :
+{
+    Exp e;
+    Identifier i;
+    Type t;
+}
+{
+    <NOT> e = ExpUnary() { return new Not(e); }
+    |
+    <NEW> <INT> <LBRACKET> e = Exp() <RBRACKET> { return new NewArray(e); }
+    |
+    <NEW> i = Identifier() <LPAREN> <RPAREN> { return new NewObject(i); }
+    |
+    <THIS> { return new This(); }
+    |
+    <TRUE> { return new True(); }
+    |
+    <FALSE> { return new False(); }
+    |
+    i = Identifier() { return new IdentifierExp(i.toString()); }
+    |
+    <NUM> { return new IntegerLiteral(Integer.parseInt(token.image)); }
+    |
+    <LPAREN> e = Exp() <RPAREN> { return e; }
+}
+
+// ExpList: Represents a list of expressions.
+// Used for method call arguments and array initializers
+ExpList ExpList() :
+{
+    ExpList el = new ExpList();
+    Exp e;
+}
+{
+    (
+        e = Exp() { el.addElement(e); }
+        (
+            <COMMA> e = Exp() { el.addElement(e); }
+        )*
+    )?
+    {
+        return el;
+    }
+}
+
+// Identifier: Represents an identifier in the program.
+// Creates an Identifier node from the token's image
+Identifier Identifier() :
+{
+    Token t;
+}
+{
+    t = <IDENTIFIER>
+    {
+        return new Identifier(t.image);
+    }
+}
+
+/*
+void Goal() :
+{}
+{
+  ( MiniJavaToken() )*
+  <EOF>
+}
+
+void MiniJavaToken():
+{}
+{
+  "class"  |  <IDENTIFIER> | "{" | "public" | "static" | "void" |
+  "main" | "(" | "String"  | "[" | "]" | ")" | "}" | "extends" | ";"
+  | "return" | "," | "int" | "boolean" | "=" | "if" | "else" | "while"
+  | "System.out.println" | "&&" | "<" | "+" | "-" | "*" | "." |
+  "length" | <INTEGER_LITERAL> | "true" | "false" | "this" | "new" |
+  "!"
+}
+*/
