@@ -83,12 +83,12 @@ public class MiniJavaParser implements MiniJavaParserConstants {
         }
 
         // Imprimir a lista de instruções
-        /*InstrList aux = instL;
+        InstrList aux = instL;
         while (aux != null) {
             System.out.print(aux.head.Assem);
             System.out.println("\n");
             aux = aux.tail;
-        }*/
+        }
 
     }
 
