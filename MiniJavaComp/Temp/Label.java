@@ -1,41 +1,27 @@
 package Temp;
-import symboltable.*;
+
 import Symbol.Symbol;
 
-/**
- * A Label represents an address in assembly language.
- */
+public class Label {
+    private String name;
+    private static int count = 0;
 
-public class Label  {
-   private String name;
-   private static int count;
+    /* Gera um label com nome arbitrário */
+    public Label() {
+        this("L" + count++);
+    }
 
-  /**
-   * a printable representation of the label, for use in assembly 
-   * language output.
-   */
-   public String toString() {return name;}
+    /* Gera label com base em uma string */
+    public Label(String s) {
+        name = s;
+    }
 
-  /**
-   * Makes a new label that prints as "name".
-   * Warning: avoid repeated calls to <tt>new Label(s)</tt> with
-   * the same name <tt>s</tt>.
-   */
-   public Label(String n) {
-	name=n;
-   }
+    /* Gera label com base em um Symbol */
+    public Label(Symbol s) {
+        name = s.toString();
+    }
 
-  /**
-   * Makes a new label with an arbitrary name.
-   */
-   public Label() {
-	this("L" + count++);
-   }
-	
-  /**
-   * Makes a new label whose name is the same as a symbol.
-   */
-   public Label(Symbol s) {
-	this(s.toString());
-   }
+    public String toString() {
+        return name;
+    }
 }

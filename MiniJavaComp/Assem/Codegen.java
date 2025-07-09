@@ -145,8 +145,10 @@ public class Codegen {
     
     void munchJUMP(Stm s)
     {   
-        OPER op = new OPER("JUMP `s0\n",null,null,((JUMP)s).targets);
-        emit(op);
+        JUMP jump = (JUMP) s;
+    Temp t = munchExp(jump.exp);
+    TempList src = new TempList(t, null);
+    emit(new OPER("JUMP `s0\n", null, src, jump.targets));
     }
 
     void munchCALL(CALL s){

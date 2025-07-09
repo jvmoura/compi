@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.ListIterator;
 
+import Symbol.Symbol;
 import Temp.Temp;
 import Temp.Label;
 import Frame.Frame;
@@ -16,7 +17,6 @@ import java.util.Arrays;
 
 import Tree.*;
 import Util.ListConvert;
-import Symbol.Symbol;
 import Assem.*;
 
 public class MipsFrame extends Frame {
@@ -69,7 +69,7 @@ public class MipsFrame extends Frame {
 
 	private static HashMap<Symbol, Integer> functions = new HashMap<Symbol, Integer>();
 
-	public MipsFrame(Symbol n, List<Boolean> f) {
+	private MipsFrame(Symbol n, List<Boolean> f) {
 		Integer count = functions.get(n);
 		if (count == null) {
 			count = new Integer(0);
@@ -405,7 +405,7 @@ public class MipsFrame extends Frame {
 	}
 	
 	public void procEntryExit3(List<Assem.Instr> body) {
-		/*
+		
 		int frameSize = maxArgOffset - offset;
 		ListIterator<Assem.Instr> cursor = body.listIterator();
 		cursor.add(OPER("\t.text", null, null));
@@ -418,7 +418,7 @@ public class MipsFrame extends Frame {
 					new Temp[] { SP }, new Temp[] { SP }));
 		}
 		body.add(OPER("\tj $ra", null, new Temp[] { RA }));
-		*/
+		
 	}
 
 	private static Temp[] registers = {};
@@ -436,7 +436,7 @@ public class MipsFrame extends Frame {
 	}
 
 	private static boolean spilling = true;
-
+	
 	// set spilling to true when the spill method is implemented
 	public void spill(List<Assem.Instr> insns, Temp[] spills) {
 		/*
@@ -447,7 +447,7 @@ public class MipsFrame extends Frame {
 				throw new Error("Spilling unimplemented");
 			} else
 				for (int s = 0; s < spills.length; s++) {
-					Tree.Exp exp = allocLocal(true).exp(TEMP(FP));
+					Tree.Expr exp = allocLocal(true).exp(TEMP(FP));
 					for (ListIterator<Assem.Instr> i = insns.listIterator(); i.hasNext();) {
 						Assem.Instr insn = i.next();
 						Temp[] use = insn.use;
