@@ -98,9 +98,17 @@ public class MiniJavaParser implements MiniJavaParserConstants {
         AssemFlowGraph flowGraph = new AssemFlowGraph(instL);
         //flowGraph.show(System.out);
 
-        // Geração do grafo de interferência
+        // Geração do grafo de interferência E ALOCAÇÃO DE REGISTRADORES
         Liveness interferenceGraph = new Liveness(flowGraph);
-        interferenceGraph.show(System.out);
+        // interferenceGraph.show(System.out); // Já não precisa de imprimir o grafo aqui
+
+        // --- NOVA PARTE: ALOCAÇÃO DE REGISTRADORES ---
+        new Color(interferenceGraph, frame, instL);
+
+        // A classe Color irá (eventualmente) modificar instL ou retornar uma nova lista
+        // com os registradores alocados. Por enquanto, a execução para aqui.
+
+        System.out.println("\n--- Register Allocation Complete (no spill handling yet) ---");
     }
 
 /*---------------------------------------------
